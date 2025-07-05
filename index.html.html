@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Market Data Entry</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.6;
+      background-color: #f4f4f9;
+      padding: 20px;
+    }
+    #data-form {
+      max-width: 650px;
+      margin: auto;
+      padding: 25px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    h2 {
+      text-align: center;
+      color: #333;
+    }
+    label {
+      font-weight: bold;
+      margin-top: 15px;
+      display: inline-block;
+    }
+    input[type="number"], input[list] {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 20px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    #message {
+      margin-top: 15px;
+      font-weight: bold;
+      text-align: center;
+    }
+    .brand-line {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+      gap: 10px;
+    }
+    .brand-line label {
+      flex: 1;
+      font-weight: normal;
+      margin-top: 0;
+    }
+    .brand-line input[type="number"] {
+        flex-basis: 100px;
+        width: 100px;
+        margin-top: 0;
+    }
+    h4 {
+        border-bottom: 1px solid #eee;
+        padding-bottom: 5px;
+        margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Market Data Entry Form</h2>
+
+  <form id="data-form">
+    <label for="party-name">1. Party Name</label><br>
+    <input list="party-list" id="party-name" required placeholder="Search or select a party" autocomplete="on"/>
+    <datalist id="party-list">
+      <option value="Loading..."></option>
+    </datalist>
+    <br><br>
+
+    <label>2. Product Category</label><br>
+    <div id="category-container"></div><br>
+
+    <label>3. Brand Name, Qty & Value</label>
+    <div id="dynamic-brands-container"></div><br>
+
+    <button type="submit">Submit</button>
+  </form>
+
+  <div id="message"></div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxz9EKb3HIGpEdeto9tXWCeDSlZ9-iL1a_RyHv9pN-Sk-p59ytSPXAaWlSqtQOvs_eEgA/exec';
+
+      const categories = [
+        "Laptop", "Desktop", "AIO", "Printer", "Monitor",
+        "Accessories", "Surveillance", "Attendance & Security"
+      ];
+
+      const brandMap = {
+        "Laptop": ["HP", "Dell", "ASUS", "Lenovo", "MSI", "Acer", "Apple"],
+        "Desktop": ["HP", "Dell", "ASUS", "Lenovo", "MSI", "Acer"],
+        "AIO": ["HP", "Dell", "ASUS", "Lenovo", "MSI", "Acer"],
+        "Printer": ["HP", "Canon", "Epson", "Brother"],
+        "Monitor": ["HP", "Dell", "LG", "Samsung", "Acer", "ASUS", "Sony"],
+        "Accessories": ["Logitech", "HP", "Dell", "Lenovo", "Razer"],
+        "Surveillance": ["CP-PLUS", "Dahua", "Hikvision", "Hi-Focus", "Uniview", "Godrej"],
+        "Attendance & Security": ["eSSL", "ZKTeco", "Hikvision", "CP-PLUS", "Godrej"]
+      };
+
+      const partyInput = document.getElementById('party-name');
+      const partyList = document.getElementById('party-list');
+      const categoryContainer = document.getElementById('category-container');
+      const dynamicBrandsContainer = document.getElementById('dynamic-brands-container');
+      const form = document.getElementById('data-form');
+      const messageDiv = document.getElementById('message');
+
+      // Fetch party names
+      fetch(SCRIPT_URL)
+        .then(res => res.json())
+        .then(data => {
+          partyList.innerHTML = '';
+          data.parties.forEach(party => {
+            const opt = document.createElement('option');
+            opt.value = party;
+            partyList.appendChild(opt);
+          });
+        })
+        .catch(() => {
+          partyList.innerHTML = '';
+          const opt = document.createElement('option');
+          opt.value = "Failed to load party names";
+          partyList.appendChild(opt);
+        });
+
+      // Create category checkboxes
+      categories.forEach(cat => {
+        const chk = document.createElement('input');
+        chk.type = 'checkbox';
+        chk.id = `cat-${cat}`;
+        chk.value = cat;
+        chk.name = 'category';
+
+        const lbl = document.createElement('label');
+        lbl.htmlFor = chk.id;
+        lbl.textContent = ` ${cat}`; // Add space for alignment
+        lbl.style.fontWeight = "normal";
+
+        categoryContainer.appendChild(chk);
+        categoryContainer.appendChild(lbl);
+        categoryContainer.appendChild(document.createElement('br'));
+
+        chk.addEventListener('change', () => {
+          if (chk.checked) addBrandBlock(cat);
+          else removeBrandBlock(cat);
+        });
+      });
+
+      function addBrandBlock(category) {
+        const block = document.createElement('div');
+        block.id = `block-${category}`;
+        block.innerHTML = `<h4>${category}</h4>`;
+
+        (brandMap[category] || []).forEach(brand => {
+          const id_base = `brand-${category}-${brand}`;
+          
+          const line = document.createElement('div');
+          line.className = 'brand-line';
+          line.innerHTML = `
+              <input type="checkbox" id="${id_base}" value="${brand}" data-category="${category}">
+              <label for="${id_base}">${brand}</label>
+              <input type="number" id="qty-${id_base}" placeholder="Qty">
+              <input type="number" id="value-${id_base}" placeholder="Value">
+          `;
+          block.appendChild(line);
+        });
+
+        dynamicBrandsContainer.appendChild(block);
+      }
+
+      function removeBrandBlock(category) {
+        const block = document.getElementById(`block-${category}`);
+        if (block) block.remove();
+      }
+
+      form.addEventListener('submit', e => {
+        e.preventDefault();
+        messageDiv.textContent = ""; // Clear previous messages
+        const partyName = partyInput.value;
+        if (!partyName) {
+            alert("Please select a party.");
+            return;
+        }
+
+        const entries = [];
+        const checkedBrands = dynamicBrandsContainer.querySelectorAll('input[type="checkbox"][data-category]:checked');
+
+        checkedBrands.forEach(chk => {
+            const category = chk.dataset.category;
+            const brand = chk.value;
+            const id_base = `brand-${category}-${brand}`;
+
+            const qtyInput = document.getElementById(`qty-${id_base}`);
+            const valueInput = document.getElementById(`value-${id_base}`);
+            
+            const qty = qtyInput ? qtyInput.value : '';
+            const value = valueInput ? valueInput.value : '';
+
+            // Add an entry only if Qty or Value has been entered
+            if (qty || value) { 
+                entries.push({
+                    category: category,
+                    brand: brand,
+                    qty: qty || 0, // Default to 0 if empty
+                    value: value || 0 // Default to 0 if empty
+                });
+            }
+        });
+
+        if (entries.length === 0) {
+            alert("Please check a brand and enter its Qty or Value.");
+            return;
+        }
+
+        messageDiv.textContent = "Submitting, please wait...";
+        messageDiv.style.color = "orange";
+        
+        fetch(SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ partyName, entries })
+        })
+        .then(res => res.json())
+        .then(res => {
+          if (res.result === 'success') {
+            messageDiv.textContent = "✅ Submitted successfully!";
+            messageDiv.style.color = "green";
+            form.reset();
+            dynamicBrandsContainer.innerHTML = '';
+            // Remove the successfully submitted party from the list
+            const usedOption = [...partyList.options].find(opt => opt.value === partyName);
+            if (usedOption) usedOption.remove();
+            partyInput.value = '';
+          } else {
+            throw new Error(res.message || 'An unknown error occurred.');
+          }
+        })
+        .catch(err => {
+          messageDiv.textContent = "❌ Error: " + err.message;
+          messageDiv.style.color = "red";
+        });
+      });
+    });
+  </script>
+</body>
+</html>
